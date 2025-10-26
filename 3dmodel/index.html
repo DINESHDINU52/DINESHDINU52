@@ -6,6 +6,33 @@
   <style>
     body { margin: 0; overflow: hidden; background: transparent; }
     canvas { display: block; }
+    
+    #loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.5s;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
   
   <script type="importmap">
@@ -18,6 +45,10 @@
   </script>
 </head>
 <body>
+  <div id="loader">
+    <div class="spinner"></div>
+  </div>
+  
   <script type="module">
     // 1. Import Three.js and the OBJLoader
     import * as THREE from 'three';
@@ -26,9 +57,10 @@
 
     // Scene setup
     const scene = new THREE.Scene();
+    scene.background = null; // No background
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setClearColor(0x000000, 0); // Transparent background
+    renderer.setClearColor(0x000000, 0); // Fully transparent
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
     
@@ -115,6 +147,15 @@
       window.modelObject = object;
       
       scene.add(object);
+      
+      // Hide loader after 10 seconds
+      setTimeout(() => {
+        const loader = document.getElementById('loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          setTimeout(() => loader.remove(), 500);
+        }
+      }, 10000);
     }
     
     // 4. Load textures first, then the model
