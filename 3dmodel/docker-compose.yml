@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  viewer:
+    build: .
+    ports:
+      - "3636:80"
+    restart: unless-stopped
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+

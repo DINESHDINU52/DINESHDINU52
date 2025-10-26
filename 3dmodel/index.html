@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OBJ Model Viewer</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #222; }
+    canvas { display: block; }
+    #status { 
+      position: absolute; 
+      top: 10px; 
+      left: 10px; 
+      color: white; 
+      font-family: monospace; 
+      background: rgba(0,0,0,0.5); 
+      padding: 10px; 
+      z-index: 1000;
+    }
+  </style>
+  <div id="status">Loading...</div>
+  
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <script type="module">
+    // 1. Import Three.js and the OBJLoader
+    import * as THREE from 'three';
+    import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    
+    const statusEl = document.getElementById('status');
+
+    // Add OrbitControls for mouse interaction
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // Lighting
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+    hemiLight.position.set(0, 20, 0);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(10, 10, 10);
+    scene.add(dirLight);
+
+    // 2. Initialize
+    statusEl.textContent = 'Loading textures and model...';
+
+    // 3. Instantiate the loaders
+    const objLoader = new OBJLoader();
+    
+    // Helper function to add material to model
+    function applyMaterialToObject(object, material) {
+      object.traverse((child) => {
+        if (child.isMesh) {
+          child.material = material;
+          // Enable shadows if you want
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+    }
+    
+    // Helper function to load textures
+    function loadTextures() {
+      statusEl.textContent = 'Loading textures...';
+      const textureLoader = new THREE.TextureLoader();
+      
+      return new Promise((resolve, reject) => {
+        const textures = {};
+        let loaded = 0;
+        const total = 5;
+        
+        const checkComplete = () => {
+          loaded++;
+          if (loaded === total) {
+            statusEl.textContent = 'Textures loaded! Loading model...';
+            resolve(textures);
+          }
+        };
+        
+        // Load diffuse texture
+        textureLoader.load(
+          'texture_diffuse.png',
+          (tex) => { textures.map = tex; checkComplete(); },
+          undefined,
+          () => checkComplete() // Skip missing textures
+        );
+        
+        // Load normal texture
+        textureLoader.load(
+          'texture_normal.png',
+          (tex) => { tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; textures.normalMap = tex; checkComplete(); },
+          undefined,
+          () => checkComplete()
+        );
+        
+        // Load roughness texture
+        textureLoader.load(
+          'texture_roughness.png',
+          (tex) => { textures.roughnessMap = tex; checkComplete(); },
+          undefined,
+          () => checkComplete()
+        );
+        
+        // Load metallic texture
+        textureLoader.load(
+          'texture_metallic.png',
+          (tex) => { textures.metalnessMap = tex; checkComplete(); },
+          undefined,
+          () => checkComplete()
+        );
+        
+        // Load PBR texture
+        textureLoader.load(
+          'texture_pbr.png',
+          (tex) => { textures.map = tex; checkComplete(); },
+          undefined,
+          () => checkComplete()
+        );
+      });
+    }
+    
+    // Helper function to center and scale the model
+    function addModelToScene(object, textures) {
+      console.log('Model loaded successfully! Object:', object);
+      
+      if (!object || !object.children || object.children.length === 0) {
+        console.error('Model has no children');
+        statusEl.textContent = 'Error: Model has no children';
+        return;
+      }
+      
+      // Apply materials with textures if available
+      const material = new THREE.MeshStandardMaterial({ 
+        color: 0xffffff
+      });
+      
+      // Add loaded textures
+      if (textures.map) material.map = textures.map;
+      if (textures.normalMap) material.normalMap = textures.normalMap;
+      if (textures.roughnessMap) material.roughnessMap = textures.roughnessMap;
+      if (textures.metalnessMap) material.metalnessMap = textures.metalnessMap;
+      
+      applyMaterialToObject(object, material);
+      
+      // Center the model and scale it to fit the view
+      const box = new THREE.Box3().setFromObject(object);
+      const center = box.getCenter(new THREE.Vector3());
+      object.position.sub(center); 
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z);
+      console.log('Model size:', size, 'maxDim:', maxDim);
+      if (maxDim > 0) {
+        const scale = 5 / maxDim;
+        object.scale.set(scale, scale, scale);
+      }
+      
+      scene.add(object);
+      console.log('Model added to scene with textures');
+      statusEl.textContent = 'Model loaded with textures! ' + object.children.length + ' parts';
+      setTimeout(() => statusEl.style.display = 'none', 3000);
+    }
+    
+    // 4. Load textures first, then the model
+    loadTextures().then((textures) => {
+      objLoader.load('base.obj',
+        (object) => {
+          console.log('base.obj loaded, children:', object.children.length);
+          addModelToScene(object, textures);
+        },
+        (xhr) => {
+          if (xhr.total > 0) {
+            const percent = Math.round((xhr.loaded / xhr.total * 100));
+            console.log('Loading base.obj: ' + percent + '%');
+            statusEl.textContent = 'Loading model: ' + percent + '%';
+          }
+        },
+        (error) => {
+          console.error('Error loading base.obj:', error);
+          statusEl.textContent = 'Error loading base.obj. Check console (F12).';
+          statusEl.style.color = 'red';
+        }
+      );
+    });
+
+    camera.position.z = 10;
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
