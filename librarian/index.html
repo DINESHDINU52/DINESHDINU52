@@ -112,13 +112,17 @@
         color: 0xffffff
       });
       
-      // Add loaded textures
-      if (textures.map) material.map = textures.map;
-      if (textures.normalMap) material.normalMap = textures.normalMap;
-      if (textures.roughnessMap) material.roughnessMap = textures.roughnessMap;
-      if (textures.metalnessMap) material.metalnessMap = textures.metalnessMap;
-      
-      applyMaterialToObject(object, material);
+   const materials = [
+  new THREE.MeshStandardMaterial({ color: 0xff0000 }),
+  new THREE.MeshStandardMaterial({ color: 0x00ff00 }),
+  new THREE.MeshStandardMaterial({ color: 0x0000ff }),
+];
+
+object.traverse((child) => {
+  if (child.isMesh) {
+    child.material = materials[Math.floor(Math.random() * materials.length)];
+  }
+});
       
       // Center the model and scale it to fit the view - make it bigger
       const box = new THREE.Box3().setFromObject(object);
@@ -127,7 +131,7 @@
       const size = box.getSize(new THREE.Vector3());
       const maxDim = Math.max(size.x, size.y, size.z);
       if (maxDim > 0) {
-        const scale = 7 / maxDim; // Increased from 5 to 7 for bigger model
+        const scale = 5 / maxDim; // Increased from 5 to 7 for bigger model
         object.scale.set(scale, scale, scale);
       }
       
@@ -172,6 +176,7 @@
 </body>
 
 </html>
+
 
 
 
