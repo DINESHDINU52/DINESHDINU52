@@ -105,7 +105,7 @@
     }
 
     // === LOAD OBJ MODEL ===
-    objLoader.load('./models/base.obj',
+    objLoader.load('base.obj',
       (object) => addModelToScene(object),
       (xhr) => console.log((xhr.loaded / xhr.total * 100).toFixed(0) + '% loaded'),
       (error) => console.error('Error loading OBJ:', error)
@@ -133,3 +133,4 @@
   </script>
 </body>
 </html>
+
