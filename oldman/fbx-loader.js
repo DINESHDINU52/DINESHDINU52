@@ -7,7 +7,7 @@
     // Configuration
     const config = {
         // Path to your FBX file - replace with your actual FBX file path
-        fbxPath: 'base.fbx',
+        fbxPath: 'assets/models/base.fbx',
         // Fallback to external URL if local file doesn't exist
         //fallbackUrl: 'https://dineshdinu52.github.io/DINESHDINU52/3dmodel/index.html',
         // Enable auto-rotation
@@ -300,5 +300,6 @@
     window.addEventListener('resize', onWindowResize);
 
 })();
+
 
 
