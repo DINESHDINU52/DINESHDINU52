@@ -1,173 +1,84 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>OBJ Model Viewer</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    html, body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: transparent;
-    }
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-      border: none;
-      padding: 0;
-      margin: 0;
-    }
-  </style>
-  
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-    }
-  }
-  </script>
-</head>
-<body>
-  <script type="module">
-    // 1. Import Three.js and the OBJLoader
-    import * as THREE from 'three';
-    import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+<script type="module">
+  import * as THREE from 'three';
+  import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-    // Scene setup
-    const scene = new THREE.Scene();
-    scene.background = null; // No background
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setClearColor(0x000000, 0); // Fully transparent
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-    
-    // Add OrbitControls for mouse interaction
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
+  // Scene setup
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000000);
 
-    // Lighting
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
-    hemiLight.position.set(0, 20, 0);
-    scene.add(hemiLight);
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-    dirLight.position.set(10, 10, 10);
-    scene.add(dirLight);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
 
-    // 2. Initialize
-    const objLoader = new OBJLoader();
-    
-    // Helper function to add material to model
-    function applyMaterialToObject(object, material) {
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+  dirLight.position.set(5, 10, 5);
+  scene.add(dirLight);
+
+  // Texture loader
+  const textureLoader = new THREE.TextureLoader();
+
+  // Load your textures (place them in same folder as index.html)
+  const baseColor = textureLoader.load('shaded.png');
+  const normalMap = textureLoader.load('stone.png');
+  const metalMap = textureLoader.load('metal.png');
+
+  // Create the material with all maps
+  const material = new THREE.MeshStandardMaterial({
+    map: baseColor,
+    normalMap: normalMap,
+    metalnessMap: metalMap,
+    roughness: 0.5,
+    metalness: 0.7,
+  });
+
+  // OBJ loader
+  const loader = new OBJLoader();
+  loader.load(
+    'base.obj', // make sure this file is in the same folder
+    (object) => {
       object.traverse((child) => {
         if (child.isMesh) {
           child.material = material;
-          // Enable shadows if you want
           child.castShadow = true;
           child.receiveShadow = true;
         }
       });
-    }
-    
-    // Helper function to load textures quickly
-    function loadTextures() {
-      const textureLoader = new THREE.TextureLoader();
-      
-      return new Promise((resolve) => {
-        const textures = {};
-        let loaded = 0;
-        const total = 5;
-        
-        const checkComplete = () => {
-          loaded++;
-          if (loaded === total) resolve(textures);
-        };
-        
-        // Load textures in parallel
-        textureLoader.load('texture_diffuse.png', (tex) => { textures.map = tex; checkComplete(); }, undefined, checkComplete);
-        textureLoader.load('texture_normal.png', (tex) => { tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; textures.normalMap = tex; checkComplete(); }, undefined, checkComplete);
-        textureLoader.load('texture_roughness.png', (tex) => { textures.roughnessMap = tex; checkComplete(); }, undefined, checkComplete);
-        textureLoader.load('texture_metallic.png', (tex) => { textures.metalnessMap = tex; checkComplete(); }, undefined, checkComplete);
-        textureLoader.load('texture_pbr.png', (tex) => { textures.map = tex; checkComplete(); }, undefined, checkComplete);
-      });
-    }
-    
-    // Helper function to center and scale the model
-    function addModelToScene(object, textures) {
-      if (!object || !object.children || object.children.length === 0) return;
-      
-      // Apply materials with textures if available
-      const material = new THREE.MeshStandardMaterial({ 
-        color: 0xffffff
-      });
-      
-      // Add loaded textures
-      if (textures.map) material.map = textures.map;
-      if (textures.normalMap) material.normalMap = textures.normalMap;
-      if (textures.roughnessMap) material.roughnessMap = textures.roughnessMap;
-      if (textures.metalnessMap) material.metalnessMap = textures.metalnessMap;
-      
-      applyMaterialToObject(object, material);
-      
-      // Center the model and scale it to fit the view - make it bigger
+
+      // Center & scale
       const box = new THREE.Box3().setFromObject(object);
       const center = box.getCenter(new THREE.Vector3());
-      object.position.sub(center); 
+      object.position.sub(center);
       const size = box.getSize(new THREE.Vector3());
-      const maxDim = Math.max(size.x, size.y, size.z);
-      if (maxDim > 0) {
-        const scale = 7 / maxDim; // Increased from 5 to 7 for bigger model
-        object.scale.set(scale, scale, scale);
-      }
-      
-      // Store the object for rotation
-      window.modelObject = object;
-      
+      const scale = 5 / Math.max(size.x, size.y, size.z);
+      object.scale.set(scale, scale, scale);
+
       scene.add(object);
-    }
-    
-    // 4. Load textures first, then the model
-    loadTextures().then((textures) => {
-      objLoader.load('base.obj',
-        (object) => addModelToScene(object, textures),
-        undefined,
-        () => {}
-      );
-    });
+      window.model = object;
+    },
+    undefined,
+    (err) => console.error('Model failed to load:', err)
+  );
 
-    camera.position.z = 10;
+  camera.position.z = 5;
 
-    // Animation loop with rotation
-    function animate() {
-      requestAnimationFrame(animate);
-      
-      // Rotate the model if it exists
-      if (window.modelObject) {
-        window.modelObject.rotation.y += 0.01; // Increased rotation speed
-      }
-      
-      controls.update();
-      renderer.render(scene, camera);
-    }
-    animate();
+  function animate() {
+    requestAnimationFrame(animate);
+    if (window.model) window.model.rotation.y += 0.01;
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
 
-    // Resize handler
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  </script>
-</body>
-</html>
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
